@@ -27,17 +27,17 @@ To maintain coherence throughout the source code, we use `clang-format` to enfor
 * For real-valued literals, use `ONE`, `ZERO`, `HALF` etc. instead of `1.0`, `0.0`, `0.5` to ensure the compiler will not need to cast. If the value is not defined as a macro, use `static_cast<real_t>(123.4)`.
   
 * In problem generators, it is usually a good practice to enumerate all the code configurations the code works with. For instance, if your code only works with 3D Minkowski metric in SRPIC, include the following in your `PGen` class:
-  ```c++
+  ```cpp
   template <SimEngine::type S, class M>
   struct PGen : public ProblemGenerator<S, M> {
     static constexpr auto engines {
-      traits::compatible_with<SimEngine::SRPIC>::value
+      arch::traits::pgen::compatible_with<SimEngine::SRPIC>::value
     };
     static constexpr auto metrics {
-      traits::compatible_with<Metric::Minkowski>::value
+      arch::traits::pgen::compatible_with<Metric::Minkowski>::value
     };
     static constexpr auto dimensions {
-      traits::compatible_with<Dim::_3D>::value
+      arch::traits::pgen::compatible_with<Dim::_3D>::value
     };
     // ...
   };

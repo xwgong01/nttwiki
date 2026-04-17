@@ -16,8 +16,9 @@
     "sass:watch": "sass sass/style.scss docs/css/style.css --watch",
     "sass:build": "sass sass/style.scss docs/css/style.css",
     "bundle": "node js/bundle.js",
-    "diagrams:generate": "python3 codestruct/mermaidify.py --branch master",
-    "inputtable:generate": "python3 codestruct/inputtabulate.py --branch master",
+    "diagrams:generate": "python3 scripts/mermaidify.py --branch master",
+    "inputtable:generate": "python3 scripts/inputtabulate.py --branch master",
+    "imports:generate": "python3 scripts/nt2py_readme.py --branch master",
     "mkdocs:serve": "mkdocs serve",
     "build": "npm run sass:build && npm run bundle",
     "dev": "npm run bundle && concurrently \"npm run sass:watch\" \"npm run mkdocs:serve\""

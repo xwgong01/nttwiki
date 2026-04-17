@@ -7,7 +7,7 @@ scripts:
   - atm-boundaries
 ---
 
-# Problem generators
+# Customizing your setup
 
 !!! abstract "Relevant headers"
 
@@ -18,11 +18,15 @@ scripts:
     - `archetypes/spatial_dist.h`
     - `archetypes/particle_injector.h`
 
-Problem generators describe a specific simulation setup (e.g., initial conditions) for the Entity engines to use to run the simulation. All problem generators are stored in the `setups` diectory each in a separate parent directory and are all named `pgen.hpp`. It is a good practice to also store a sample `*.toml` input file and a `*.py` visualization file corresponding to that problem generator. Problem generators are chosen at compile time using the `-D pgen=...` flag, where `...` is the relative path where the problem generator is stored. For instance, to pick the `setups/srpic/langmuir/pgen.hpp` problem generator, one would use the following command:
+## Problem generators
+
+Problem generators describe a specific simulation setup (e.g., initial conditions) for the `Entity` engines to use to run the simulation. All problem generators are stored in the `pgens` directory each in a separate parent directory and are all named `pgen.hpp`. It is a good practice to also store a sample `*.toml` input file and a `*.py` visualization file corresponding to that problem generator. Problem generators are chosen at compile time using the `-D pgen=...` flag, where `...` is the relative path where the problem generator is stored. For instance, to pick the `pgens/streaming/pgen.hpp` problem generator, one would use the following command:
 
 ```bash
-cmake ... -D pgen=srpic/langmuir
+cmake ... -D pgen=streaming
 ```
+
+### Basic structure
 
 All problem generators contain a namespace `user::` and a structure named `Pgen<S, M>` which must inherit from the `arch::ProblemGenerator<S, M>` class, where `S` is the simulation engine and `M` is the metric. A typical dummy problem generator will look like this:
 
@@ -33,10 +37,10 @@ All problem generators contain a namespace `user::` and a structure named `Pgen<
 #include "enums.h"
 #include "global.h"
 
-#include "arch/traits.h"
+#include "archetypes/traits.h"
 #include "archetypes/problem_generator.h"
 #include "framework/domain/metadomain.h"
-#include "framework/parameters.h"
+#include "framework/parameters/parameters.h"
 
 namespace user {
   using namespace ntt; // (2)!
@@ -45,10 +49,10 @@ namespace user {
   struct PGen : public arch::ProblemGenerator<S, M> {
     // enumerate which engines/metrics/dimensions are compatible (1)
     static constexpr auto engines {
-      traits::compatible_with<SimEngine::SRPIC, SimEngine::GRPIC>::value
+      arch::traits::pgen::compatible_with<SimEngine::SRPIC, SimEngine::GRPIC>::value
     };
     static constexpr auto metrics {
-      traits::compatible_with<Metric::Minkowski,
+      arch::traits::pgen::compatible_with<Metric::Minkowski,
                               Metric::Spherical,
                               Metric::QSpherical,
                               Metric::Kerr_Schild,
@@ -56,7 +60,7 @@ namespace user {
                               Metric::Kerr_Schild_0>::value
     };
     static constexpr auto dimensions {
-      traits::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value
+      arch::traits::pgen::compatible_with<Dim::_1D, Dim::_2D, Dim::_3D>::value
     };
 
     // ... additional definitions ..
@@ -83,22 +87,22 @@ There are three special definitions one may provide in the problem generator tha
 
     In all of the functions and classes described below, it is assumed that the end-user designing the problem generator has no knowledge of the inner workings of the code units. All the quantities provided by the user are thus in the natural physical units (i.e., global physical coordinates for the positions and local tetrad basis for the vectors). All the conversions, staggering etc. is done automatically under the hood.
 
-## Initializing fields
+### Initializing fields
 
 To initialize electromagnetic fields to specific values, one may provide a custom class called `init_flds`:
 
-```c++
+```cpp
 template <SimEngine::type S, class M>
 struct PGen : public arch::ProblemGenerator<S, M> {
   // ...
   
   // the name of the class may be arbitrary, but the instance must be named `init_flds`
-  FancyFieldInitializer<S, M> init_flds;
+  FancyFieldInitializer init_flds;
 };
 ```
 
-This class in turn may have an arbitrarily complex constructor, but it must have any number of the methods `ex1()`, `ex2()`, ... `dx1()`, `dx2()`, etc., which set the corresponding field components. For instance, to set the electric field in the $x_2$ direction to a constant value, one would write:
-```c++
+This class (or class template) in turn may have an arbitrarily complex constructor, but it must have any number of the methods `ex1()`, `ex2()`, ... `dx1()`, `dx2()`, etc., which set the corresponding field components. For instance, to set the electric field in the $x_2$ direction to a constant value, one would write:
+```cpp
 template <Dimension D>
 struct NotSoFancyFieldInitializer {
   NotSoFancyFieldInitializer(real_t myval)
@@ -116,7 +120,7 @@ private:
 
 Notice, that `ex2` takes a single argument of type `coord_t<D>` (coordinate vector), which in this case is empty, since we are not using it. In general, one may define fields as functions of the coordinate. 
 
-```c++
+```cpp
 template <Dimension D>
 struct SinusoidalField {
   SinusoidalField(real_t kx, real_t ampl)
@@ -136,7 +140,7 @@ template <SimEngine::type S, class M>
 struct PGen : public arch::ProblemGenerator<S, M> {
   // ...
   
-  SinusoidalField<S, M> init_flds;
+  SinusoidalField<D> init_flds;
 
   // initialize the `init_flds` by passing the parameters from the input
   inline PGen(const SimulationParams& p, const Metadomain<S, M>&)
@@ -147,16 +151,15 @@ struct PGen : public arch::ProblemGenerator<S, M> {
 };
 ```
 
+Fields must be returned in the local tetrad (orthonormal) basis in SR and coordinate-basis in GR, while the passed coordinates are the global physical coordinates. Conversion to code units and staggering of each corresponding field component is done automatically under the hood.
 
-Fields must be returned in the local tetrad (orthonormal) basis, while the passed coordinates are the physical coordinates. Conversion to code units and staggering of each corresponding field component is done automatically under the hood.
-
-## Initializing particles
+### Initializing particles
 
 Similar to initializing the fields, one can also initialize particles with a given energy or spatial distribution. This is done by providing a custom method of the `PGen` class called `InitPrtls(Domain<S, M>&)` which takes a reference to the local subdomain as a parameter. In principle, one can manually initialize the particles in any way they want, but it is recommended to use the built-in routines from the `arch::` (archetypes) namespace.
 
 For instance, to initialize a uniform Maxwellian of a given temperature, one can use the `arch::Maxwellian` class together with the `InjectUniform` method:
 
-```c++
+```cpp
 // don't forget to include the proper headers
 #include "archetypes/energy_dist.h"
 #include "archetypes/particle_injector.h"
@@ -169,7 +172,7 @@ struct PGen : public arch::ProblemGenerator<S, M> {
   inline void InitPrtls(Domain<S, M>& local_domain) {
     const auto energy_dist = arch::Maxwellian<S, M>(
                                   local_domain.mesh.metric, 
-                                  local_domain.random_pool, 
+                                  local_domain.random_pool(), 
                                   temperature);
     arch::InjectUniform<S, M, decltype(energy_dist), decltype(energy_dist)>(
                           params,
@@ -187,7 +190,7 @@ struct PGen : public arch::ProblemGenerator<S, M> {
 
 To initialize a non-uniform distribution and/or an arbitrary energy distribution, we will need to provide our own classes, which in turn must inherit from the `arch::SpatialDistribution<S, M>` and `arch::EnergyDistribution<S, M>`. For instance, let us initialize a distribution of two particle species counter-streaming in opposing direction with their velocities depending on the $x_2$ ($y$) coordinate, distributed in space according to a Gaussian profile. We first need to define the energy distribution:
 
-```c++
+```cpp
 template <SimEngine::type S, class M>
 struct CounterstreamEnergyDist : public arch::EnergyDistribution<S, M> {
   CounterstreamEnergyDist(const M& metric, real_t v_max, real_t sx2)
@@ -216,7 +219,7 @@ private:
 
 We then need to define the spatial distribution, which takes a coordinate as an argument and returns the probability of a particle to be injected at that point. In our case, we will use a Gaussian profile:
 
-```c++
+```cpp
 template <SimEngine::type S, class M>
 struct GaussianDist : public arch::SpatialDistribution<S, M> {
   GaussianDist(const M& metric, real_t x1c, real_t x2c, real_t dr)
@@ -237,7 +240,7 @@ private:
 
 We can then pass the instances of these classes to the `arch::InjectNonUniform` method called from within the `InitPrtls` method of the problem generator:
 
-```c++
+```cpp
 // definition of CounterstreamEnergyDist and GaussianDist classes
 // ...
 
@@ -283,6 +286,263 @@ struct PGen : public arch::ProblemGenerator<S, M> {
 
 1. `x_2` extent of the global domain can be directly read from the metadomain instance passed to the constructor.
 2. Here, the value of `1.0` corresponds to the probability of `1.0` returned by the spatial distribution class.
+
+### Custom post-timestep routines
+
+Often times, one needs to intervene to the simulation process to perform some custom operations by updating the fields or the particles (for instance, to apply special boundary conditions, inject particles etc.). The safest way of performing this is at the end of each timestep, when all the quantities have already been computed and stored. For that, Entity allows users to define another special method in the problem generator called `CustomPostStep`. It accepts the current timestep, the current physical time, and the local subdomain as a parameter. For instance, to inject particles at a given rate, one can write:
+
+```cpp
+template <SimEngine::type S, class M>
+struct PGen : public arch::ProblemGenerator<S, M> {
+  // ... 
+
+  void CustomPostStep(std::size_t, long double, Domain<S, M>& domain) {
+    // ... some energy/spatial distribution & injector here (see above) ...
+    arch::InjectNonUniform<S, M, /* ... */>( /* ... */ );
+  }
+};
+```
+
+Or you may also manually access the fields and particles through the `domain.fields` and `domain.species[...]` objects, respectively, and perform any operations you need. Be mindful, however, that all the raw quantities stored within the `domain` object are in the code units (for more details, see the [fields and particles](../3-code/4-fields_particles.md) section; for ways to convert from one system/basis to another, see the [metric](../3-code/5-metrics.md) section).
+
+### Custom external force
+
+Similar to all the other custom routines, one may also define a custom external force which will optionally be applied to the particles together with the electromagnetic pusher. This is done by defining an arbitrary class with an instance named `ext_force`, which implements three methods: `fx1()`, `fx2()`, `fx3()`. For instance, to apply a force in the $x_1$ direction decaying over time, one would write:
+
+```cpp
+template <Dimension D>
+struct PushDaTempo {
+  // specify which species to apply the force to
+  const std::vector<unsigned short> species { 1, 2 };
+
+  PushDaTempo(real_t f, real_t t) : force { f }, tau { t } {}
+
+  Inline auto fx1(const unsigned short&,
+                  const real_t& time,
+                  const coord_t<D>&) const -> real_t {
+    return force * math::exp(-time / tau);
+  }
+
+  Inline auto fx2(const unsigned short&,
+                  const real_t&,
+                  const coord_t<D>&) const -> real_t {
+    return ZERO;
+  }
+
+  Inline auto fx3(const unsigned short&,
+                  const real_t&,
+                  const coord_t<D>&) const -> real_t {
+    return ZERO;
+  }
+private:
+  const real_t force, tau;
+};
+
+// and then in the problem generator class
+template <SimEngine::type S, class M>
+struct PGen : public arch::ProblemGenerator<S, M> {
+  // ...
+  PushDaTempo<S, M> ext_force;
+  // and read the parameters from the input
+  inline PGen(const SimulationParams& p, const Metadomain<S, M>& global_domain)
+    : arch::ProblemGenerator<S, M> { p }
+    , ext_force { p.template get<real_t>("setup.force"),
+                  p.template get<real_t>("setup.tau") }
+    {}
+};
+```
+
+Again, as everything else in the problem generator, the force (rather, the acceleration) must be returned in the local tetrad basis and the passed coordinates are the physical coordinates.
+
+
+!!! note "All functions are optional"
+
+    Note, that among the functions mentioned throughout this section, you may specify only the ones you actually need, and ignore the ones you don't (i.e., there is no need to provide dummy functions that return zero), as the code will automatically determine at compile-time which functions are present.
+
+### Custom external current
+
+<a href="https://github.com/entity-toolkit/entity/pull/92">
+  <span class="since-version">1.2.0</span>
+</a>
+
+There are specific instances, where one needs to apply a source term to the Ampere's law as additional (external) currents (e.g., driven turbulence). This can easily be achieved by defining an arbitrary class instance called `ext_current`, which implements 3 methods: `jx1()`, `jx2()`, `jx3()` -- each returning the corresponding external current component in units of $j_0$. For instance, to apply a constant sinusoidal current $j_3$ as a function of $x_1$, one could write:
+
+```cpp
+template <Dimension D>
+struct ImmaRealLiveWire { //(1)!
+  ImmaRealLiveWire(real_t amplitude, real_t k)
+    : amp { amplitude }
+    , k { k } {};
+
+  Inline auto jx1(const coord_t<D>& x_Ph) const -> real_t {
+      return ZERO;
+    }
+
+  Inline auto jx2(const coord_t<D>& x_Ph) const -> real_t {
+      return ZERO;
+    }
+
+  Inline auto jx3(const coord_t<D>& x_Ph) const -> real_t {
+      return amp * math::sin(k * x_Ph[0]);
+    }
+
+  private:
+    const real_t amp, k; 
+};
+
+template <SimEngine::type S, class M>
+struct PGen : public arch::ProblemGenerator<S, M> {
+  ImmaRealLiveWire<D> ext_current;
+
+  inline PGen(const SimulationParams& p, const Metadomain<S, M>& global_domain)
+    : arch::ProblemGenerator<S, M> { p }
+    , ext_current { p.template get<real_t>("setup.amplitude"),
+                    p.template get<real_t>("setup.k") } //(2)!
+    {}
+};
+```  
+
+1. name of the class is not important, as long as its instance declared in the problem generator class itself is called `ext_current`.
+
+2. directly initialize the `ext_current` in the `PGen` constructor by passing values read from the input.
+
+Keep in mind, that in contrast to the external force, all of the components of the current have to be defined in the structure, even if they return zero. 
+
+!!! note "External current"
+
+    The external current routine is currently only limited to work in Minkowski space. 
+
+
+### Custom field output
+
+The code also allows for custom-defined fields to be written together with other field quantities during the output. To enable that, simply define the name of your field in the input file:
+
+```toml
+[output.fields]
+  ...
+  custom = ["my_field"]
+  ...
+```
+
+There can be as many custom fields as one needs. And then in the problem generator, populate the corresponding field by defining the following function:
+
+```cpp
+void CustomFieldOutput(const std::string&   name,//(1)!
+                       ndfield_t<M::Dim, 6> buffer,//(2)!
+                       index_t              index,//(3)!
+                       timestep_t,//(4)!
+                       simtime_t,//(5)!
+                       const Domain<S, M>&  domain) {//(6)!
+  if (name == "my_field") {
+    // 1D example (can be easily generalized)
+    if constexpr (M::Dim == Dim::_1D) {
+      const auto& EM = domain.fields.em;
+      Kokkos::parallel_for(
+        "MyField",
+        domain.mesh.rangeActiveCells(),
+        Lambda(index_t i1) {
+          const auto      i1_ = COORD(i1);
+          coord_t<M::Dim> x_Ph { ZERO };
+          // convert coordinate to physical basis:
+          metric.template convert<Crd::Cd, Crd::Ph>({ i1_ }, x_Ph);
+          // compute whatever needs to be written
+          // ... may also depend on the EM fields from the `domain`
+          // ... in this example -- output Ex * x^2
+          buffer(i1, index) = SQR(x_Ph[0]) *
+                              metric.template transform<1, Idx::U, Idx::T>(
+                                { i1_ + HALF },
+                                EM(i1, em::ex1));
+          // here we also convert Ex1(i + 1/2) to Tetrad basis
+        });
+    }
+  } else {
+    raise::Error("Custom output not provided", HERE);
+  }
+}
+```
+
+1. the same name that went into the input file
+2. buffer array where the field is going to be written into
+3. an index of the buffer array where the field is written into
+4. completed step index
+5. completed step time in physical units
+6. reference of the local subdomain
+
+Alternatively, you can precompute the desired quantity in the `CustomPostStep` function and then simply copy to the buffer in the same function:
+
+```cpp
+// assuming 2D and that the desired quantity is saved in `cbuff`
+template <SimEngine::type S, class M>
+struct PGen : public arch::ProblemGenerator<S, M> {
+  // ...
+
+  array_t<real_t**> cbuff;
+  
+  // ...
+
+  void CustomPostStep(timestep_t step, simtime_t, Domain<S, M>& domain) {
+    if (step == 0) {
+      // allocate the array at time = 0
+      cbuff = array_t<real_t**>("cbuff",
+                                domain.mesh.n_all(in::x1),
+                                domain.mesh.n_all(in::x2));
+    }
+    // populate the buffer (can be done at specific timesteps)
+    Kokkos::parallel_for(
+      "FillCbuff",
+      domain.mesh.rangeActiveCells(),
+      Lambda(index_t i1, index_t i2) {
+        // ...
+      });
+  }
+
+  void CustomFieldOutput(const std::string&    name,
+                         ndfield_t<M::Dim, 6> buffer,
+                         index_t              index,
+                         timestep_t,
+                         simtime_t,
+                         const Domain<S, M>&) {
+    if (name == "my_field") {
+      Kokkos::deep_copy(Kokkos::subview(buffer, Kokkos::ALL, Kokkos::ALL, index), cbuff);
+    } else {
+      // ...
+    }
+  }
+};
+```
+
+Keep in mind that the custom field output is written as-is, i.e., no additional interpolation or transformation is applied. So make sure the quantity you output is covariant (i.e., does not depend on the resolution or the stretching of coordinates; essentially, always output "physical" covariant/contravariant vectors or transform them to the tetrad basis).
+
+### Custom stats
+
+One can also write custom user-defined stats.
+
+```toml
+[output.stats]
+  ...
+  custom = ["my_stat"]
+  ...
+```
+
+Just like in the case with custom fields, you specify a special function in the problem generator class which has a name `CustomStat` and returns a single real value:
+
+```cpp
+auto CustomStat(const std::string&   name,//(1)!
+                timestep_t,
+                simtime_t,
+                const Domain<S, M>&  domain) -> real_t {//(2)!
+  if (name == "my_stat") {
+    return 42.0;
+  } else {
+    raise::Error("Custom stat not provided", HERE);
+  }
+}
+``` 
+
+Reduction from all meshblocks of the custom stat is done automatically (the values are summed).
+
+1. the same name that went into the input file
+2. reference of the local subdomain
 
 ## Boundary Conditions
 
@@ -332,7 +592,7 @@ The injected particle distribution is in Boltzmann-equilibrium with the gravity:
 
 While the particle atmospheric boundaries are handled automatically, when field boundaries are set to `ATMOSPHERE`, the user must also provide target electromagnetic fields which will be used to reset the field values below the atmosphere. To do this, one needs to provide a `FieldDriver` method in their problem generator, which takes `time` as an argument and returns an arbitrary class with methods: `ex1`, `ex2`, ... etc. An example of such a class is shown below:
 
-```c++
+```cpp
 template <Dimension D>
 struct AtmFields {
 
@@ -425,7 +685,7 @@ If you want to drive the fields at your boundary to a given value you can do so 
 
 In the problem generator one only needs to define a `MatchFields` method which should inherit from a `struct` that defines the field components you want to drive (the name of the struct can be arbitrary, as long as the name of the function returning it is `MatchFields`). 
 
-```c++
+```cpp
 template <Dimension D>
 struct MyBoundaryFields {
   /*
@@ -484,7 +744,7 @@ With `FIXED` boundary conditions you can explicitly set the field components at 
 
 In this example, the $E^2$, and $E^3$ components are set to zero in the boundary, while all the other components remain untouched:
 
-```c++
+```cpp
 // ...
 
 template <SimEngine::type S, class M>
@@ -513,7 +773,7 @@ struct PGen : public arch::ProblemGenerator<S, M> {
 !!! hint "Changing BCs at runtime"
 
     One can change the boundary conditions at runtime by directly accessing the global metadomain, for example, in the `CustomPostStep` routine. Below is an example of how to do that (chaging boundaries to `MATCH` for fields and `ABSORB` for particles in $\pm x$ and $\pm y$ at a certain time):
-    ```c++
+    ```cpp
     template <SimEngine::type S, class M>
     struct PGen : public arch::ProblemGenerator<S, M> {
       // ...
@@ -541,24 +801,6 @@ struct PGen : public arch::ProblemGenerator<S, M> {
     2. first argument is the direction in which to change the boundary; `M`/`P` stand for minus/plus
 
 
-## Custom post-timestep routines
-
-Often times, one needs to intervene to the simulation process to perform some custom operations by updating the fields or the particles (for instance, to apply special boundary conditions, inject particles etc.). The safest way of performing this is at the end of each timestep, when all the quantities have already been computed and stored. For that, Entity allows users to define another special method in the problem generator called `CustomPostStep`. It accepts the current timestep, the current physical time, and the local subdomain as a parameter. For instance, to inject particles at a given rate, one can write:
-
-```c++
-template <SimEngine::type S, class M>
-struct PGen : public arch::ProblemGenerator<S, M> {
-  // ... 
-
-  void CustomPostStep(std::size_t, long double, Domain<S, M>& domain) {
-    // ... some energy/spatial distribution & injector here (see above) ...
-    arch::InjectNonUniform<S, M, /* ... */>( /* ... */ );
-  }
-};
-```
-
-Or you may also manually access the fields and particles through the `domain.fields` and `domain.species[...]` objects, respectively, and perform any operations you need. Be mindful, however, that all the raw quantities stored within the `domain` object are in the code units (for more details, see the [fields and particles](../3-code/4-fields_particles.md) section; for ways to convert from one system/basis to another, see the [metric](../3-code/5-metrics.md) section).
-
 ## Particle purging
 
 The custom post-timestep can also be used to purge particles within a given region of the domain. This can be useful to inject fresh plasma in the part of the domain and make sure that the old plasma has been removed before replenishing.
@@ -569,7 +811,7 @@ The custom post-timestep can also be used to purge particles within a given regi
 
 Below we use the example from the shock setup to illustrate particle purging routine. Here, all plasma particles that have $x>x_{\rm min}$ (denoted `xmin` in the code) is purged and the fields are reset before new plasma is injected.
 
-```c++
+```cpp
 template <Dimension D>
 struct InitFields {
   /**
@@ -666,242 +908,3 @@ struct PGen : public arch::ProblemGenerator<S, M> {
 ```
 
 1. because we essentially remove the particles, the returned E-fields must have zero divergence.
-
-## Custom external force
-
-Similar to all the other custom routines, one may also define a custom external force which will optionally be applied to the particles together with the electromagnetic pusher. This is done by defining an arbitrary class with an instance named `ext_force`, which implements three methods: `fx1()`, `fx2()`, `fx3()`. For instance, to apply a force in the $x_1$ direction decaying over time, one would write:
-
-```c++
-template <Dimension D>
-struct PushDaTempo {
-  // specify which species to apply the force to
-  const std::vector<unsigned short> species { 1, 2 };
-
-  PushDaTempo(real_t f, real_t t) : force { f }, tau { t } {}
-
-  Inline auto fx1(const unsigned short&,
-                  const real_t& time,
-                  const coord_t<D>&) const -> real_t {
-    return force * math::exp(-time / tau);
-  }
-
-  Inline auto fx2(const unsigned short&,
-                  const real_t&,
-                  const coord_t<D>&) const -> real_t {
-    return ZERO;
-  }
-
-  Inline auto fx3(const unsigned short&,
-                  const real_t&,
-                  const coord_t<D>&) const -> real_t {
-    return ZERO;
-  }
-private:
-  const real_t force, tau;
-};
-
-// and then in the problem generator class
-template <SimEngine::type S, class M>
-struct PGen : public arch::ProblemGenerator<S, M> {
-  // ...
-  PushDaTempo<S, M> ext_force;
-  // and read the parameters from the input
-  inline PGen(const SimulationParams& p, const Metadomain<S, M>& global_domain)
-    : arch::ProblemGenerator<S, M> { p }
-    , ext_force { p.template get<real_t>("setup.force"),
-                  p.template get<real_t>("setup.tau") }
-    {}
-};
-```
-
-Again, as everything else in the problem generator, the force (rather, the acceleration) must be returned in the local tetrad basis and the passed coordinates are the physical coordinates.
-
-
-!!! note "All functions are optional"
-
-    Note, that among the functions mentioned throughout this section, you may specify only the ones you actually need, and ignore the ones you don't (i.e., there is no need to provide dummy functions that return zero), as the code will automatically determine at compile-time which functions are present.
-
-## Custom external current
-
-<a href="https://github.com/entity-toolkit/entity/pull/92">
-  <span class="since-version">1.2.0</span>
-</a>
-
-There are specific instances, where one needs to apply a source term to the Ampere's law as additional (external) currents (e.g., driven turbulence). This can easily be achieved by defining an arbitrary class instance called `ext_current`, which implements 3 methods: `jx1()`, `jx2()`, `jx3()` -- each returning the corresponding external current component in units of $j_0$. For instance, to apply a constant sinusoidal current $j_3$ as a function of $x_1$, one could write:
-
-```c++
-template <Dimension D>
-struct ImmaRealLiveWire { //(1)!
-  ImmaRealLiveWire(real_t amplitude, real_t k)
-    : amp { amplitude }
-    , k { k } {};
-
-  Inline auto jx1(const coord_t<D>& x_Ph) const -> real_t {
-      return ZERO;
-    }
-
-  Inline auto jx2(const coord_t<D>& x_Ph) const -> real_t {
-      return ZERO;
-    }
-
-  Inline auto jx3(const coord_t<D>& x_Ph) const -> real_t {
-      return amp * math::sin(k * x_Ph[0]);
-    }
-
-  private:
-    const real_t amp, k; 
-};
-
-template <SimEngine::type S, class M>
-struct PGen : public arch::ProblemGenerator<S, M> {
-  ImmaRealLiveWire<D> ext_current;
-
-  inline PGen(const SimulationParams& p, const Metadomain<S, M>& global_domain)
-    : arch::ProblemGenerator<S, M> { p }
-    , ext_current { p.template get<real_t>("setup.amplitude"),
-                    p.template get<real_t>("setup.k") } //(2)!
-    {}
-};
-```  
-
-1. name of the class is not important, as long as its instance declared in the problem generator class itself is called `ext_current`.
-
-2. directly initialize the `ext_current` in the `PGen` constructor by passing values read from the input.
-
-Keep in mind, that in contrast to the external force, all of the components of the current have to be defined in the structure, even if they return zero. 
-
-!!! note "External current"
-
-    The external current routine is currently only limited to work in Minkowski space. 
-
-
-## Custom field output
-
-The code also allows for custom-defined fields to be written together with other field quantities during the output. To enable that, simply define the name of your field in the input file:
-
-```toml
-[output.fields]
-  ...
-  custom = ["my_field"]
-  ...
-```
-
-There can be as many custom fields as one needs. And then in the problem generator, populate the corresponding field by defining the following function:
-
-```c++
-void CustomFieldOutput(const std::string&   name,//(1)!
-                       ndfield_t<M::Dim, 6> buffer,//(2)!
-                       index_t              index,//(3)!
-                       timestep_t,//(4)!
-                       simtime_t,//(5)!
-                       const Domain<S, M>&  domain) {//(6)!
-  if (name == "my_field") {
-    // 1D example (can be easily generalized)
-    if constexpr (M::Dim == Dim::_1D) {
-      const auto& EM = domain.fields.em;
-      Kokkos::parallel_for(
-        "MyField",
-        domain.mesh.rangeActiveCells(),
-        Lambda(index_t i1) {
-          const auto      i1_ = COORD(i1);
-          coord_t<M::Dim> x_Ph { ZERO };
-          // convert coordinate to physical basis:
-          metric.template convert<Crd::Cd, Crd::Ph>({ i1_ }, x_Ph);
-          // compute whatever needs to be written
-          // ... may also depend on the EM fields from the `domain`
-          // ... in this example -- output Ex * x^2
-          buffer(i1, index) = SQR(x_Ph[0]) *
-                              metric.template transform<1, Idx::U, Idx::T>(
-                                { i1_ + HALF },
-                                EM(i1, em::ex1));
-          // here we also convert Ex1(i + 1/2) to Tetrad basis
-        });
-    }
-  } else {
-    raise::Error("Custom output not provided", HERE);
-  }
-}
-```
-
-1. the same name that went into the input file
-2. buffer array where the field is going to be written into
-3. an index of the buffer array where the field is written into
-4. completed step index
-5. completed step time in physical units
-6. reference of the local subdomain
-
-Alternatively, you can precompute the desired quantity in the `CustomPostStep` function and then simply copy to the buffer in the same function:
-
-```c++
-// assuming 2D and that the desired quantity is saved in `cbuff`
-template <SimEngine::type S, class M>
-struct PGen : public arch::ProblemGenerator<S, M> {
-  // ...
-
-  array_t<real_t**> cbuff;
-  
-  // ...
-
-  void CustomPostStep(timestep_t step, simtime_t, Domain<S, M>& domain) {
-    if (step == 0) {
-      // allocate the array at time = 0
-      cbuff = array_t<real_t**>("cbuff",
-                                domain.mesh.n_all(in::x1),
-                                domain.mesh.n_all(in::x2));
-    }
-    // populate the buffer (can be done at specific timesteps)
-    Kokkos::parallel_for(
-      "FillCbuff",
-      domain.mesh.rangeActiveCells(),
-      Lambda(index_t i1, index_t i2) {
-        // ...
-      });
-  }
-
-  void CustomFieldOutput(const std::string&    name,
-                         ndfield_t<M::Dim, 6> buffer,
-                         index_t              index,
-                         timestep_t,
-                         simtime_t,
-                         const Domain<S, M>&) {
-    if (name == "my_field") {
-      Kokkos::deep_copy(Kokkos::subview(buffer, Kokkos::ALL, Kokkos::ALL, index), cbuff);
-    } else {
-      // ...
-    }
-  }
-};
-```
-
-Keep in mind that the custom field output is written as-is, i.e., no additional interpolation or transformation is applied. So make sure the quantity you output is covariant (i.e., does not depend on the resolution or the stretching of coordinates; essentially, always output "physical" covariant/contravariant vectors or transform them to the tetrad basis).
-
-## Custom stats
-
-One can also write custom user-defined stats.
-
-```toml
-[output.stats]
-  ...
-  custom = ["my_stat"]
-  ...
-```
-
-Just like in the case with custom fields, you specify a special function in the problem generator class which has a name `CustomStat` and returns a single real value:
-
-```c++
-auto CustomStat(const std::string&   name,//(1)!
-                timestep_t,
-                simtime_t,
-                const Domain<S, M>&  domain) -> real_t {//(2)!
-  if (name == "my_stat") {
-    return 42.0;
-  } else {
-    raise::Error("Custom stat not provided", HERE);
-  }
-}
-``` 
-
-Reduction from all meshblocks of the custom stat is done automatically (the values are summed).
-
-1. the same name that went into the input file
-2. reference of the local subdomain

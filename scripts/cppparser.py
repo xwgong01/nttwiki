@@ -182,7 +182,7 @@ class CPPClass:
         filtered_methods = [
             (meth, access)
             for meth, access in self.methods
-            if meth.return_type.type != self.name
+            if (meth.return_type) and (meth.return_type.type != self.name)
         ]
         templates = (
             ", ".join(replace_type(t.type) for t in self.template_args)

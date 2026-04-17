@@ -1,4 +1,4 @@
-import cppparser as cp
+import cppparser as cpp
 import requests
 import argparse
 import os
@@ -25,13 +25,13 @@ if __name__ == "__main__":
 
     root_url = f"https://raw.githubusercontent.com/entity-toolkit/entity/refs/heads/{args.branch}/src"
 
-    def get_class_from(file: str) -> cp.CPPClass:
+    def get_class_from(file: str) -> cpp.CPPClass:
         response = requests.get(f"{root_url}/{file}")
         if response.status_code != 200:
             raise FileNotFoundError(f"File {file} not found in branch {args.branch}")
 
         header = response.text
-        parser = cp.CPPParser(header)
+        parser = cpp.CPPParser(header)
         clss = parser.find_classes()
         if len(clss) != 1:
             raise ValueError(f"Expected 1 class, found {len(clss)}")
