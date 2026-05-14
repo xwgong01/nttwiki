@@ -52,7 +52,9 @@ This section goes over some instructions on how to compile & run the `Entity` on
 
 === "`Frontier` (ORNL)"
 
-    _WIP_
+    --8<-- "docs/content/useful/clusters/frontier.md"
+
+    _Last updated: 04/21/2026_	
 
 === "(IAS)"
 
@@ -62,7 +64,7 @@ This section goes over some instructions on how to compile & run the `Entity` on
 
     --8<-- "docs/content/useful/clusters/aurora.md"
 
-    _Last updated: 8/11/2025_
+    _Last updated: 3/25/2026_
 
 === "`LUMI` (CSC)"
 
@@ -88,7 +90,7 @@ This section goes over some instructions on how to compile & run the `Entity` on
 
     --8<-- "docs/content/useful/clusters/supermuc-ng2.md"
 
-    _Last updated: 11/07/2025_
+    _Last updated: 3/25/2026_
 
 !!! warning "Mind the dates"
 

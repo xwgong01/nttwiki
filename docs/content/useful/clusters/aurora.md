@@ -6,11 +6,10 @@ Development of entity for `Aurora` is currently ongoing. Use the following docs 
 You can load the installed dependencies with
 
 ```sh
-module load adios2
-module load autoconf cmake
+module load cmake
+module load adios2/2.11.0-cpu
+module load kokkos/5.0.1-sycl
 ```
-
-The `adios2` module automatically loads the related `kokkos` module. Please note that the `adios2` module provided by ALCF does not support HDF5.
 
 I would recommend saving the module configuration for easy loading within the PBS job:
 ```sh
@@ -20,8 +19,10 @@ module save entity
 You can compile `entity` with:
 
 ```sh
-cmake -B build -D pgen=<your_pgen> -D precision=single -D mpi=ON -D output=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx
+cmake -B build -D pgen=<your_pgen> -D precision=single -D mpi=ON -D gpu_aware_mpi=OFF -D output=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx
 ```
+
+Please note that `gpu_aware_mpi=OFF` is critical at the moment, we hope to fix this in a future release.
 
 **Running entity**
 
