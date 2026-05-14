@@ -441,37 +441,19 @@ Once you're satisfied, you may run `spack install --add kokkos <OPTIONS>` to act
     
     Simply uninstalling the package may left behind some build caches which often take up a lot of space. To get rid of these, you may run `spack gc` which will try its best to delete all these caches as well as all the unused packages.
 
----
 
-### Anaconda
+### Nix
 
-If you want to have `ADIOS2` with the serial `HDF5` support (i.e., without `MPI`) installed in the conda environment, we provide a shell script `conda-entity-nompi.sh` which installs the proper compiler, the `hdf5` library, and the `ADIOS2`. Run the scripts via:
+<a href="https://github.com/entity-toolkit/entity/pull/69">
+  <span class="since-version">1.2.0</span>
+</a>
 
-```shell
-source conda-entity-nompi.sh
+On systems with the `nix` package manager, you can quickly make a development environment with all the dependencies installed using `nix-shell` (from the root directory of the code):
+
+```sh
+nix-shell dev/nix --arg hdf5 true --arg mpi true --argstr gpu HIP --argstr arch amd_gfx1100
+
+# you can inspect the default settings by
+head dev/nix/shell.nix
 ```
-
-This also `pip`-installs the `nt2.py` package for post-processing. With this configuration, the `Kokkos` library will be built in-tree.
-
----
-
-
-!!! note
-
-    We also provide a command-line tool called [`ntt-dploy`](https://github.com/entity-toolkit/ntt-dploy) which can be used for the same purpose.
-
-!!! note "Nix"
-
-    <a href="https://github.com/entity-toolkit/entity/pull/69">
-      <span class="since-version">1.2.0</span>
-    </a>
-
-    On systems with the `nix` package manager, you can quickly make a development environment with all the dependencies installed using `nix-shell` (from the root directory of the code):
-
-    ```sh
-    nix-shell dev/nix --arg hdf5 true --arg mpi true --argstr gpu HIP --argstr arch amd_gfx1100
-
-    # you can inspect the default settings by
-    head dev/nix/shell.nix
-    ```
-    Note the escapes of quotation marks when specifying a string argument.
+Note the escapes of quotation marks when specifying a string argument.

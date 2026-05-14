@@ -1,12 +1,12 @@
 classDiagram
   direction TB
-  class Metadomain~SimEngine, class~ {
+  class Metadomain~SimEngine, MetricClass~ {
     see metadomain...*
   }
-  class Domain~SimEngine, class~ {
+  class Domain~SimEngine, MetricClass~ {
     see domain...*
   }
-  class Mesh~class~ {
+  class Mesh~MetricClass~ {
     see mesh...*
   }
   class Grid~Dimension~ {
@@ -17,6 +17,9 @@ classDiagram
   }
   class ParticleSpecies {
     see species...*
+  }
+  class ParticleArrays {
+    see particle arrays...*
   }
   class Particles~Dimension, Coord~ {
     see particles...*
@@ -33,5 +36,6 @@ classDiagram
   Domain --* Fields : contains
   Domain --* Particles : contains many
   ParticleSpecies <|-- Particles : inherits
+  ParticleArrays <|-- Particles : inherits
   Mesh --* MetricBase : contains
 

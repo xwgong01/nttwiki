@@ -6,13 +6,13 @@ import re
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Generate Mermaid diagrams from C++ classes of Entity"
+        description="Generate the nt2py README content for the documentation"
     )
     parser.add_argument(
         "--branch",
         default="master",
         type=str,
-        help="Git branch to use for fetching class definitions",
+        help="Git branch to use for fetching the README.md file",
     )
     cwd = os.path.dirname(os.path.abspath(__file__))
     parser.add_argument(

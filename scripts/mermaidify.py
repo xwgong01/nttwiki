@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     root_url = f"https://raw.githubusercontent.com/entity-toolkit/entity/refs/heads/{args.branch}/src"
 
-    def get_class_from(file: str) -> cpp.CPPClass:
+    def get_class_from(file: str, which: int = 0) -> cpp.CPPClass:
         response = requests.get(f"{root_url}/{file}")
         if response.status_code != 200:
             raise FileNotFoundError(f"File {file} not found in branch {args.branch}")
@@ -33,9 +33,7 @@ if __name__ == "__main__":
         header = response.text
         parser = cpp.CPPParser(header)
         clss = parser.find_classes()
-        if len(clss) != 1:
-            raise ValueError(f"Expected 1 class, found {len(clss)}")
-        return clss[0]
+        return clss[which]
 
     domain = get_class_from("framework/domain/domain.h")
     metadomain = get_class_from("framework/domain/metadomain.h")
@@ -43,7 +41,8 @@ if __name__ == "__main__":
     grid = get_class_from("framework/domain/grid.h")
 
     species = get_class_from("framework/containers/species.h")
-    particles = get_class_from("framework/containers/particles.h")
+    particle_arrays = get_class_from("framework/containers/particles.h", 0)
+    particles = get_class_from("framework/containers/particles.h", 1)
     fields = get_class_from("framework/containers/fields.h")
 
     metric = get_class_from("metrics/metric_base.h")
@@ -60,6 +59,7 @@ if __name__ == "__main__":
     mesh_short = mesh.mermaid().split("\n")[0][:-1]
     metric_short = metric.mermaid().split("\n")[0][:-1]
     species_short = species.mermaid().split("\n")[0][:-1]
+    particle_arrays_short = particle_arrays.mermaid().split("\n")[0][:-1]
     particles_short = particles.mermaid().split("\n")[0][:-1]
     fields_short = fields.mermaid().split("\n")[0][:-1]
 
@@ -69,12 +69,14 @@ if __name__ == "__main__":
     fields_particles_mmd = "classDiagram\n"
     fields_particles_mmd += f"  {domain_short}{{\n    see domain...*\n  }}\n"
     fields_particles_mmd += f"{species.mermaid(2)}\n"
+    fields_particles_mmd += f"{particle_arrays.mermaid(2)}\n"
     fields_particles_mmd += f"{particles.mermaid(2)}\n"
     fields_particles_mmd += f"{fields.mermaid(2)}\n\n"
 
     fields_particles_mmd += "  Domain --* Particles : contains many\n"
     fields_particles_mmd += "  Domain --* Fields : contains\n"
     fields_particles_mmd += "  ParticleSpecies <|-- Particles : inherits\n\n"
+    fields_particles_mmd += "  ParticleArrays <|-- Particles : inherits\n\n"
 
     fields_particles_mmd += f"  {notes}\n"
 
@@ -129,6 +131,9 @@ if __name__ == "__main__":
     structures_mmd += f"  {grid_short}{{\n    see grid...*\n  }}\n"
     structures_mmd += f"  {metric_short}{{\n    see metrics...*\n  }}\n"
     structures_mmd += f"  {species_short}{{\n    see species...*\n  }}\n"
+    structures_mmd += (
+        f"  {particle_arrays_short}{{\n    see particle arrays...*\n  }}\n"
+    )
     structures_mmd += f"  {particles_short}{{\n    see particles...*\n  }}\n"
     structures_mmd += f"  {fields_short}{{\n    see fields...*\n  }}\n\n"
 
@@ -140,6 +145,7 @@ if __name__ == "__main__":
     structures_mmd += "  Domain --* Fields : contains\n"
     structures_mmd += "  Domain --* Particles : contains many\n"
     structures_mmd += "  ParticleSpecies <|-- Particles : inherits\n"
+    structures_mmd += "  ParticleArrays <|-- Particles : inherits\n"
     structures_mmd += "  Mesh --* MetricBase : contains\n\n"
 
     # Write to files

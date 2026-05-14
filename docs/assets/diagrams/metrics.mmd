@@ -1,10 +1,9 @@
 classDiagram
   direction LR
-  class Mesh~class~ {
+  class Mesh~MetricClass~ {
     see mesh...*
   }
   class MetricBase~Dimension~ {
-    +bool is_metric$
     +Dimension Dim$
     #real_t dx_min
     #const real_t nx1
@@ -16,8 +15,6 @@ classDiagram
     #const real_t x2_max
     #const real_t x3_min
     #const real_t x3_max
-    +find_dxMin() real_t
-    +totVolume() real_t
     +dxMin() real_t
     +set_dxMin(real_t dxmin) void
   }
@@ -25,12 +22,13 @@ classDiagram
   class Minkowski~Dimension~ {
     -const real_t dx
     -const real_t dx_inv
-    +const char *       Label$
+    +const char *      Label$
     +Dimension PrtlDim$
     +ntt\:\:Metric MetricType$
     +ntt\:\:Coord CoordType$
-    +find_dxMin() real_t override
-    +totVolume() real_t override
+    +get_dx() real_t
+    +find_dxMin() real_t
+    +totVolume() real_t
     +sqrt_det_h(coord_t~D~ &) Inline auto
   }
   class Spherical~Dimension~ {
@@ -41,12 +39,12 @@ classDiagram
     -const real_t dtheta_inv
     -const real_t dphi_inv
     -const bool small_angle
-    +const char *       Label$
+    +const char *      Label$
     +Dimension PrtlDim$
     +ntt\:\:Metric MetricType$
     +ntt\:\:Coord CoordType$
-    +find_dxMin() real_t override
-    +totVolume() real_t override
+    +find_dxMin() real_t
+    +totVolume() real_t
     +sqrt_det_h(coord_t~D~ & x) Inline auto
     +sqrt_det_h_tilde(coord_t~D~ & x) Inline auto
     +polar_area(real_t x1) Inline auto
@@ -64,12 +62,12 @@ classDiagram
     -const real_t deta_inv
     -const real_t dphi_inv
     -const bool small_angle
-    +const char *       Label$
+    +const char * Label$
     +Dimension PrtlDim$
     +ntt\:\:Metric MetricType$
     +ntt\:\:Coord CoordType$
-    +find_dxMin() real_t override
-    +totVolume() real_t override
+    +find_dxMin() real_t
+    +totVolume() real_t
     +sqrt_det_h(coord_t~D~ & x) Inline auto
     +sqrt_det_h_tilde(coord_t~D~ & x) Inline auto
     +polar_area(real_t x1) Inline auto
@@ -87,7 +85,8 @@ classDiagram
     -const real_t dr_inv
     -const real_t dtheta_inv
     -const real_t dphi_inv
-    +const char *       Label$
+    -const bool small_angle
+    +const char *      Label$
     +Dimension PrtlDim$
     +ntt\:\:Coord CoordType$
     +ntt\:\:Metric MetricType$
@@ -98,8 +97,8 @@ classDiagram
     +spin() Inline auto
     +rhorizon() Inline auto
     +rg() Inline auto
-    +find_dxMin() real_t override
-    +totVolume() real_t override
+    +find_dxMin() real_t
+    +totVolume() real_t
     +alpha(coord_t~D~ & x) Inline auto
     +dr_alpha(coord_t~D~ & x) Inline auto
     +dt_alpha(coord_t~D~ & x) Inline auto
@@ -135,7 +134,8 @@ classDiagram
     -const real_t dchi_inv
     -const real_t deta_inv
     -const real_t dphi_inv
-    +const char *       Label$
+    -const bool small_angle
+    +const char * Label$
     +Dimension PrtlDim$
     +ntt\:\:Metric MetricType$
     +ntt\:\:Coord CoordType$
@@ -146,8 +146,8 @@ classDiagram
     +spin() Inline auto
     +rhorizon() Inline auto
     +rg() Inline auto
-    +find_dxMin() real_t override
-    +totVolume() real_t override
+    +find_dxMin() real_t
+    +totVolume() real_t
     +alpha(coord_t~D~ & x) Inline auto
     +dr_alpha(coord_t~D~ & x) Inline auto
     +dt_alpha(coord_t~D~ & x) Inline auto
@@ -173,38 +173,38 @@ classDiagram
     -theta2eta(real_t theta) Inline auto
   }
   class KerrSchild0~Dimension~ {
+    -const real_t a
+    -const real_t rg_
+    -const real_t rh_
     -const real_t dr
     -const real_t dtheta
     -const real_t dphi
     -const real_t dr_inv
     -const real_t dtheta_inv
     -const real_t dphi_inv
-    -const real_t a
-    -const real_t rg_
-    -const real_t rh_
-    +const char * Label$
+    +const char *      Label$
     +Dimension PrtlDim$
     +ntt\:\:Metric MetricType$
     +ntt\:\:Coord CoordType$
     +spin() Inline auto
     +rhorizon() Inline auto
     +rg() Inline auto
-    +find_dxMin() real_t override
-    +totVolume() real_t override
+    +find_dxMin() real_t
+    +totVolume() real_t
     +alpha(coord_t~D~ &) Inline auto
-    +dr_alpha(coord_t~D~ & x) Inline auto
-    +dt_alpha(coord_t~D~ & x) Inline auto
+    +dr_alpha(coord_t~D~ &) Inline auto
+    +dt_alpha(coord_t~D~ &) Inline auto
     +beta1(coord_t~D~ &) Inline auto
-    +dr_beta1(coord_t~D~ & x) Inline auto
-    +dt_beta1(coord_t~D~ & x) Inline auto
-    +dr_h11(coord_t~D~ & x) Inline auto
+    +dr_beta1(coord_t~D~ &) Inline auto
+    +dt_beta1(coord_t~D~ &) Inline auto
+    +dr_h11(coord_t~D~ &) Inline auto
     +dr_h22(coord_t~D~ & x) Inline auto
     +dr_h33(coord_t~D~ & x) Inline auto
-    +dr_h13(coord_t~D~ & x) Inline auto
-    +dt_h11(coord_t~D~ & x) Inline auto
-    +dt_h22(coord_t~D~ & x) Inline auto
+    +dr_h13(coord_t~D~ &) Inline auto
+    +dt_h11(coord_t~D~ &) Inline auto
+    +dt_h22(coord_t~D~ &) Inline auto
     +dt_h33(coord_t~D~ & x) Inline auto
-    +dt_h13(coord_t~D~ & x) Inline auto
+    +dt_h13(coord_t~D~ &) Inline auto
     +sqrt_det_h(coord_t~D~ & x) Inline auto
     +sqrt_det_h_tilde(coord_t~D~ & x) Inline auto
     +polar_area(real_t x1) Inline auto

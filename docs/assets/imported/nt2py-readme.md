@@ -21,7 +21,7 @@ data.diagnostics # < pd.DataFrame
 
 > Note, that by default, the `hdf5` support is disabled in `nt2py` (i.e., only `ADIOS2` format is supported). To enable it, install the package as `pip install "nt2py[hdf5]"` instead of simply `pip install nt2py`.
 
-##### Accessing the data
+#### Accessing the data
 
 Fields and spectra are stored as lazily loaded `xarray` datasets (a collection of equal-sized arrays with shared axis coordinates). You may access the coordinates in each dimension using `.coords`:
 
@@ -54,7 +54,7 @@ data.particles.sel(sp=[1, 2, 4]).isel(t=-1)
 
 selects all the particles of species 1, 2, and 4 on the last timestep. The loading of the data itself is done by calling: `.load()` method, which returns a simple `pandas` dataframe.
 
-##### Plotting
+#### Plotting
 
 Plot a field (in Cartesian coordinates) at a specific time (or output step):
 
@@ -157,7 +157,7 @@ nt2e.makeFramesAndMovie(
 )
 ```
 
-##### Raw readers
+#### Raw readers
 
 In case you want to access the raw data without using `nt2py`'s `xarray`/`dask` lazy-loading, you may do so by using the readers. For example, for `ADIOS2` output data format:
 

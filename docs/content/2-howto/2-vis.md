@@ -15,14 +15,13 @@ The output is configured using the following configurations in the `input` file:
 
   # ...
 [[particles.species]]
-  tracking = true # (16)!
+  tracking = true # (15)!
 
   # ...
 [output]
   format = "BPFile" # (2)!
   interval = 100 # (3)!
   interval_time = 0.1 # (8)!
-  separate_files = true # (15)!
 
   [output.fields]
     quantities = ["B", "E", "Rho_1_2", "..."] # (1)!
@@ -60,8 +59,9 @@ The output is configured using the following configurations in the `input` file:
 12. Min/max energies for binning the energy distribution [default to 1e-3 -> 1e3]
 13. whether to use logarithmic energy bins or linear
 14. box reduced quantities to output as stats
-15. whether to write in a single file or into separate files
-16. enable tracking for a given particle species
+15. enable tracking for a given particle species
+
+For the full list, please look at the `input.example.toml` file or refer to the [following section](../1-getting-started/3-inputfile.md).
 
 Following is the list of all supported fields
 

@@ -8,7 +8,7 @@ classDiagram
   class Particles~Dimension, Coord~ {
     see particles...*
   }
-  class Metadomain~SimEngine, class~ {
+  class Metadomain~SimEngine, MetricClass~ {
     +Dimension D$
     -uint g_ndomains
     -vector~int~ g_decomposition
@@ -30,7 +30,8 @@ classDiagram
     +CommunicateFields(Domain~S, M~ &, CommTags ) void
     +SynchronizeFields(Domain~S, M~ &, CommTags ) void
     +CommunicateParticles(Domain~S, M~ &) void
-    +RemoveDeadParticles(Domain~S, M~ &) void
+    +SortParticles(simtime_t , timestep_t , SimulationParams &, Domain~S, M~ &) void
+    +ShiftByCells(int ) void
     +InitStatsWriter(SimulationParams &, bool ) void
     +WriteStats(SimulationParams &, timestep_t , timestep_t , simtime_t , simtime_t ) bool
     +setFldsBC(bc_in &, FldsBC &) void
@@ -39,35 +40,41 @@ classDiagram
     +ndomains_per_dim() vector~uint~
     +subdomain(uint idx) const Domain~S, M~&
     +subdomain_ptr(uint idx) Domain~S, M~*
+    +subdomain_ptr(uint idx) const Domain~S, M~*
     +mesh() const Mesh~M~&
     +species_params() const vector~ParticleSpecies~&
     +l_subdomain_indices() vector~uint~
     +l_npart_perspec() vector~npart_t~
     +l_maxnpart_perspec() vector~npart_t~
-    +l_npart() size_t
-    +l_ncells() size_t
+    +l_npart() npart_t
+    +l_ncells() ncells_t
     +species_labels() vector~string~
   }
-  class Domain~SimEngine, class~ {
+  class Domain~SimEngine, MetricClass~ {
     +Dimension D$
     +Mesh~M~ mesh
     +Fields~D, S~ fields
     +vector~Particles~D, M\:\:CoordType~~ species
-    +random_number_pool_t random_pool
     -uint m_index
     -vector~uint~ m_offset_ndomains
     -vector~ncells_t~ m_offset_ncells
     -dir\:\:map_t~D, uint~ m_neighbor_idx
     -int m_mpi_rank
+    -optional~random_number_pool_t~ m_random_number_pool
     +index() uint
     +offset_ndomains() vector~uint~
     +offset_ncells() vector~ncells_t~
     +neighbor_idx_in(dir\:\:direction_t~D~ & dir) uint
     +is_placeholder() bool
+    +random_pool() random_number_pool_t&
     +set_neighbor_idx(dir\:\:direction_t~D~ & dir, uint idx) void
+    +Report() string
   }
   class Grid~Dimension~ {
     #vector~ncells_t~ m_resolution
+    #boundaries_t~real_t~ m_extent
+    #dir\:\:map_t~D, FldsBC~ m_flds_bc
+    #dir\:\:map_t~D, PrtlBC~ m_prtl_bc
     +i_min(in i) ncells_t
     +i_max(in i) ncells_t
     +n_active(in i) ncells_t
@@ -83,17 +90,6 @@ classDiagram
     +rangeActiveCellsOnHost() range_h_t~D~
     +rangeAllCellsOnHost() range_h_t~D~
     +rangeCellsOnHost(box_region_t~D~ &) range_h_t~D~
-  }
-  class Mesh~class~ {
-    +bool is_mesh$
-    +Dimension D$
-    +M metric
-    -boundaries_t~real_t~ m_extent
-    -dir\:\:map_t~D, FldsBC~ m_flds_bc
-    -dir\:\:map_t~D, PrtlBC~ m_prtl_bc
-    +Intersection(boundaries_t~real_t~ box) boundaries_t~real_t~
-    +Intersects(boundaries_t~real_t~ box) bool
-    +ExtentToRange(boundaries_t~real_t~ box, boundaries_t~bool~ incl_ghosts) boundaries_t~ncells_t~
     +extent(in i) real_t,real_t
     +extent() boundaries_t~real_t~
     +flds_bc() boundaries_t~FldsBC~
@@ -102,6 +98,15 @@ classDiagram
     +prtl_bc_in(dir\:\:direction_t~D~ & direction) PrtlBC
     +set_flds_bc(dir\:\:direction_t~D~ & direction, FldsBC & bc) void
     +set_prtl_bc(dir\:\:direction_t~D~ & direction, PrtlBC & bc) void
+  }
+  class Mesh~MetricClass~ {
+    +Dimension D$
+    +M metric
+    -map~string, real_t~ m_metric_params_raw
+    +set_extent(boundaries_t~real_t~ & new_extent) void
+    +Intersection(boundaries_t~real_t~ & box) boundaries_t~real_t~
+    +Intersects(boundaries_t~real_t~ & box) bool
+    +ExtentToRange(boundaries_t~real_t~ & box, boundaries_t~bool~ &   incl_ghosts) boundaries_t~ncells_t~
   }
 
   Domain --* Mesh : contains
