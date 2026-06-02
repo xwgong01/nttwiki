@@ -92,6 +92,12 @@ This section goes over some instructions on how to compile & run the `Entity` on
 
     _Last updated: 3/25/2026_
 
+=== "`Adastra` (CINES)"
+
+    --8<-- "docs/content/useful/clusters/adastra.md"
+
+    _Last updated: 5/21/2026_
+
 !!! warning "Mind the dates"
 
     At the bottom of each section, there are tags indicating when was the last date this instruction was updated. Some of them may be outdated due to clusters being constantly updated and changed. If so, please feel free to reach out with questions or contribute updated instructions.
